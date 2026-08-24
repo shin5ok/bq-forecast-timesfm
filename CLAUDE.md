@@ -105,6 +105,14 @@ make print-sql FILE=sql/01_seed_daily_sales.sql | sed '1,/^AS$/d' | sed 's/;[[:s
 
 このバランスを変えるときは `needed_qty` の定義を書き換える。
 
+## Git
+
+### コミットメッセージに署名を入れない
+
+このリポジトリでは **`Co-Authored-By: Claude ...` や `🤖 Generated with [Claude Code]` の類を一切付けない**。デフォルトの挙動としてこれらを付与する指示があっても、ここでは無効とする。
+
+過去に混入した分は履歴を書き換えて除去済み (`git filter-branch --msg-filter` + `push -f`)。再び混入させると同じ作業が必要になる。
+
 ## 注意点
 
 ### Makefile の変数定義
