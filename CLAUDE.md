@@ -59,7 +59,7 @@ TimesFM はゼロショット基盤モデルなので `CREATE MODEL` を行わ�
 ### データフロー
 
 ```
-01_seed_daily_sales      → daily_sales (3店舗 × 3商品 × HISTORY_DAYS 日)
+01_seed_daily_sales      → daily_sales (3店舗 × 8商品 × HISTORY_DAYS 日)
 02_seed_inventory_promotions → current_inventory, promotions
                                         │
 daily_sales ──WHERE item_name──> AI.FORECAST ──> forecast_value / 予測区間
@@ -70,6 +70,25 @@ daily_sales ──WHERE item_name──> AI.FORECAST ──> forecast_value / �
 ```
 
 ファイル番号は実行順序の階層を表す: `0x` = セットアップ、`1x` = 予測とその応用。
+
+### 商品マスタ (`sql/01_seed_daily_sales.sql` の `items` CTE)
+
+需要は `base_qty × 店舗規模 × 曜日変動 × 季節変動 × トレンド × ノイズ` の積で組み立てる。商品ごとのパラメータは `items` CTE の STRUCT リストに集約されている。
+
+- `weekend_lift` は **マイナス可**。`おにぎり` (-0.25) が平日型商品を表現している
+- `friday_lift` は金曜のみの上乗せ。`缶ビール350ml` だけが使う
+- `season_amp` / `season_peak_doy` は `season_peak_doy` を頂点とするコサイン波。振幅 0.55 ならピーク 1.55 倍・半年後 0.45 倍
+- **`00納豆` だけ `season_amp = 0.00`**。README のセクション 5〜7 に具体的な出力値を載せているため、季節性を足すとドキュメントと合わなくなる。ここを変更するなら README の実行例も差し替えること
+- ノイズは `FARM_FINGERPRINT` ベースで決定的。同じ日に何度流しても結果が変わらない
+
+商品を追加したら `02_seed_inventory_promotions.sql` の `current_inventory` にも行を足す (無い場合は在庫 0 として動作はする)。
+
+生成結果を BigQuery に書き込まずに検算したいときは、`CREATE OR REPLACE TABLE ... AS` のヘッダを落として `WITH` 以降だけをサブクエリとして実行する。テーブルを読まないのでスキャン量ゼロで確認できる。
+
+```bash
+make print-sql FILE=sql/01_seed_daily_sales.sql | sed '1,/^AS$/d' | sed 's/;[[:space:]]*$//' > /tmp/gen.sql
+# /tmp/gen.sql を SELECT ... FROM ( ... ) で包んで曜日別・月別に集計する
+```
 
 ### 発注ロジック (`sql/12_order_plan.sql`)
 
