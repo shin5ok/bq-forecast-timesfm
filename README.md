@@ -7,16 +7,32 @@
 BigQuery ML の `AI.FORECAST` は **TimesFM というゼロショットの時系列基盤モデル**を使うため、
 `CREATE MODEL` による学習が不要です。SQL を1本書くだけで予測が返ってきます。
 
-```
-過去の売上実績 (daily_sales)
-        │
-        │  AI.FORECAST(サブクエリ, model => 'TimesFM 2.5', ...)
-        ▼
-店舗別・日別の需要予測 (forecast_value / 予測区間)
-        │
-        │  現在庫・特売カレンダーと突き合わせ
-        ▼
-発注ケース数 (order_plan)
+```mermaid
+flowchart TD
+    subgraph SRC["入力データ（make setup で生成 / 実運用では既存テーブル）"]
+        SALES[("daily_sales<br/>日次売上実績")]
+        INV[("current_inventory<br/>現在庫")]
+        PROMO[("promotions<br/>特売カレンダー")]
+    end
+
+    SALES -->|"WHERE item_name = '00納豆'"| FC
+
+    FC["AI.FORECAST<br/>model => 'TimesFM 2.5'<br/>ゼロショット基盤モデル / CREATE MODEL 不要"]
+    FC --> PRED["店舗別・日別の需要予測<br/>forecast_value（中央値）<br/>prediction_interval_lower / upper_bound"]
+
+    PRED --> PLAN
+    INV --> PLAN
+    PROMO --> PLAN
+
+    PLAN["発注量の算出<br/>通常日 → 中央値 / 特売日 → 上限値<br/>在庫を古い日付から消化 → ケース単位に切り上げ"]
+    PLAN --> OUT["発注ケース数<br/>order_cases / order_qty"]
+
+    classDef table fill:#e8f0fe,stroke:#4285f4,color:#202124
+    classDef ai fill:#fef7e0,stroke:#f9ab00,color:#202124
+    classDef out fill:#e6f4ea,stroke:#34a853,color:#202124
+    class SALES,INV,PROMO table
+    class FC ai
+    class OUT out
 ```
 
 ---
@@ -288,6 +304,27 @@ make evaluate
 直近 `HORIZON` 日を答え合わせ用に取り置き、それ以前のデータだけで予測して実績と突き合わせます
 （[`AI.EVALUATE`](https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-evaluate)）。
 
+```mermaid
+flowchart LR
+    ALL[("daily_sales の '00納豆'<br/>全 HISTORY_DAYS 日分")]
+
+    ALL --> CTX["コンテキストデータ<br/>date &lt;= 最終日 - HORIZON 日"]
+    ALL --> HOLD["答え合わせデータ<br/>date &gt; 最終日 - HORIZON 日<br/>（直近 HORIZON 日の実績）"]
+
+    CTX -->|"第1引数"| EV
+    HOLD -->|"第2引数"| EV
+
+    EV["AI.EVALUATE<br/>model => 'TimesFM 2.5'<br/>id_cols => store_id, item_name"]
+    EV --> M["店舗ごとの精度指標<br/>mae / rmse / mape_pct<br/>smape_pct / mase"]
+
+    classDef table fill:#e8f0fe,stroke:#4285f4,color:#202124
+    classDef ai fill:#fef7e0,stroke:#f9ab00,color:#202124
+    classDef out fill:#e6f4ea,stroke:#34a853,color:#202124
+    class ALL table
+    class EV ai
+    class M out
+```
+
 | 指標 | 見方 |
 | :--- | :--- |
 | `mae` | 平均絶対誤差。「平均して何個ズレるか」。発注単位と直接比較できる |
@@ -357,7 +394,7 @@ make clean FORCE=1    # 確認なしで削除
 
 ---
 
-## 10. ファイル構成
+## 10. ファイル構成と実行の仕組み
 
 ```
 bq-forecast-timesfm/
@@ -374,8 +411,94 @@ bq-forecast-timesfm/
     └── 14_forecast_with_history.sql     実績 + 予測（グラフ用）
 ```
 
-SQL 内の `@PROJECT_ID@` / `@DATASET@` / `@ITEM_NAME@` などのプレースホルダは、
-Makefile の `sed` で実行時に置換されます。
+### 10-1. 実行パイプライン（プレースホルダの置換）
+
+`sql/*.sql` は `@PROJECT_ID@` のようなプレースホルダを含むため、**単体では実行できません**。
+`make` が `sed` で設定値に置換し、その結果を標準入力から `bq query` に流し込みます。
+
+```mermaid
+flowchart TD
+    subgraph CFG["設定（優先度: 高 → 低）"]
+        A1["make 引数<br/>make forecast HORIZON=14"]
+        A2["環境変数<br/>export HORIZON=14"]
+        A3["Makefile のデフォルト値<br/>HORIZON ?= 7"]
+        A4["gcloud config get-value project<br/>（PROJECT_ID のみ）"]
+    end
+
+    CFG --> RENDER
+    TPL["sql/10_forecast.sql<br/>@PROJECT_ID@ / @DATASET@ / @HORIZON@ ...<br/>（このままでは実行不可）"] --> RENDER
+
+    RENDER["RENDER = sed<br/>@HORIZON@ → 7<br/>@ITEM_NAME@ → 00納豆<br/>@PROJECT_ID@ → my-project"]
+    RENDER -->|"置換済み SQL を標準入力へ"| BQ
+
+    BQ["bq query --use_legacy_sql=false<br/>--project_id / --location / --format"]
+    BQ ==>|"通常実行"| GBQ[("BigQuery<br/>PROJECT_ID:retail_demand")]
+    BQ -.->|"DRY_RUN=1 / make dry-run<br/>--dry_run を付与"| CHK["構文とスキャン量のみ検証<br/>（クエリ実行なし = 課金なし）"]
+
+    RENDER -.->|"make print-sql FILE=..."| PS["置換後の SQL を標準出力へ<br/>（BigQuery に接続しない）"]
+
+    classDef cfg fill:#f1f3f4,stroke:#5f6368,color:#202124
+    classDef tpl fill:#fce8e6,stroke:#ea4335,color:#202124
+    classDef gbq fill:#e8f0fe,stroke:#4285f4,color:#202124
+    classDef safe fill:#e6f4ea,stroke:#34a853,color:#202124
+    class A1,A2,A3,A4 cfg
+    class TPL,RENDER tpl
+    class GBQ,BQ gbq
+    class CHK,PS safe
+```
+
+> 設定を増やすときは、**Makefile の変数定義と `RENDER` の `-e` 行の両方**を更新してください。
+
+### 10-2. SQL とテーブルの依存関係
+
+どの SQL がどのテーブルを読み書きするか、対応する `make` ターゲットとあわせて示します。
+
+```mermaid
+flowchart TB
+    subgraph SEED["make setup（サンプルデータ生成 / 実データ利用時はスキップ）"]
+        S01["01_seed_daily_sales.sql"]
+        S02["02_seed_inventory_promotions.sql"]
+    end
+
+    S01 ==> T1[("daily_sales<br/>PARTITION BY date<br/>CLUSTER BY store_id, item_name")]
+    S02 ==> T2[("current_inventory")]
+    S02 ==> T3[("promotions")]
+
+    T1 --> Q00["00_show_data.sql<br/>make show-data"]
+
+    subgraph FCS["AI.FORECAST を呼ぶ SQL（4 本それぞれが独立して推論）"]
+        Q10["10_forecast.sql<br/>make forecast"]
+        Q11["11_forecast_save.sql<br/>make save"]
+        Q12["12_order_plan.sql<br/>make order-plan"]
+        Q14["14_forecast_with_history.sql<br/>make history"]
+    end
+
+    T1 --> Q10
+    T1 --> Q11
+    T1 --> Q12
+    T1 --> Q14
+    T1 --> Q13["13_evaluate.sql<br/>make evaluate<br/>（AI.EVALUATE）"]
+
+    T2 --> Q12
+    T3 --> Q12
+
+    Q11 ==> T4[("forecast_results<br/>generated_at 付きで履歴管理")]
+
+    Q10 --> O1["予測値の一覧"]
+    Q12 --> O2["発注ケース数"]
+    Q13 --> O3["精度指標"]
+    Q14 --> O4["実績 + 予測（グラフ用）"]
+
+    classDef table fill:#e8f0fe,stroke:#4285f4,color:#202124
+    classDef out fill:#e6f4ea,stroke:#34a853,color:#202124
+    class T1,T2,T3,T4 table
+    class O1,O2,O3,O4 out
+```
+
+TimesFM はゼロショットのため学習済みモデルという成果物が残りません。
+そのため `AI.FORECAST` の呼び出しは上記 4 本の SQL に**それぞれ独立して書かれており**、
+予測パラメータのロジックを変える場合は 4 箇所すべてを修正する必要があります
+（各 SQL を単体で読んで理解できるようにするための、意図的な重複です）。
 
 ---
 
