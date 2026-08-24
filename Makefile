@@ -22,11 +22,14 @@ LOCATION         ?= asia-northeast1
 TIMEZONE         ?= Asia/Tokyo
 
 # 予測対象の商品名
-ITEM_NAME        ?= 00納豆
+ITEM_NAME        ?= みんなの納豆
 # 使用するモデル (TimesFM 2.5 / TimesFM 2.0)
 MODEL            ?= TimesFM 2.5
 # 何日先まで予測するか [1, 10000]
 HORIZON          ?= 7
+# バックテスト (make evaluate) で答え合わせに使う日数。
+# HORIZON とは独立。短すぎると指標が数点のノイズで振れるため既定は 4 週間。
+EVAL_HORIZON     ?= 28
 # 予測区間の信頼度 [0, 1)
 CONFIDENCE_LEVEL ?= 0.95
 # サンプルデータの過去日数
@@ -61,6 +64,7 @@ RENDER = sed \
 	-e 's|@ITEM_NAME@|$(ITEM_NAME)|g' \
 	-e 's|@MODEL@|$(MODEL)|g' \
 	-e 's|@HORIZON@|$(HORIZON)|g' \
+	-e 's|@EVAL_HORIZON@|$(EVAL_HORIZON)|g' \
 	-e 's|@CONFIDENCE_LEVEL@|$(CONFIDENCE_LEVEL)|g' \
 	-e 's|@HISTORY_DAYS@|$(HISTORY_DAYS)|g' \
 	-e 's|@CASE_LOT@|$(CASE_LOT)|g'
@@ -94,6 +98,7 @@ config: ## 現在の設定値を表示
 	@echo "ITEM_NAME        = $(ITEM_NAME)"
 	@echo "MODEL            = $(MODEL)"
 	@echo "HORIZON          = $(HORIZON)"
+	@echo "EVAL_HORIZON     = $(EVAL_HORIZON)"
 	@echo "CONFIDENCE_LEVEL = $(CONFIDENCE_LEVEL)"
 	@echo "HISTORY_DAYS     = $(HISTORY_DAYS)"
 	@echo "CASE_LOT         = $(CASE_LOT)"
@@ -144,7 +149,7 @@ save: ## 予測結果を forecast_results テーブルに保存
 order-plan: ## 予測値から発注量 (ケース数) を算出
 	@$(RENDER) $(SQL_DIR)/12_order_plan.sql | $(BQ_QUERY)
 
-evaluate: ## 直近 HORIZON 日でバックテストして精度を確認
+evaluate: ## 直近 EVAL_HORIZON 日でバックテストして精度を確認
 	@$(RENDER) $(SQL_DIR)/13_evaluate.sql | $(BQ_QUERY)
 
 history: ## 実績 + 予測をまとめて出力 (グラフ用)

@@ -12,6 +12,9 @@ BigQuery ML の `AI.FORECAST` (TimesFM) を使った小売需要予測のデモ�
 sql/10_forecast.sql --[ RENDER = sed -e 's|@FOO@|value|g' ]--> bq query --use_legacy_sql=false
 ```
 
+## ツール
+設計時には、google-dev-knowledge と context7 を使って、最新のドキュメントや実装の方法を確認する
+
 したがって:
 - SQL ファイルを直接 `bq query < sql/xx.sql` してはいけない。必ず make ターゲット経由か `make print-sql` を通す
 - 新しい設定値を足すときは **Makefile の変数定義と `RENDER` の `-e` 行の両方** を更新する
@@ -48,6 +51,8 @@ make evaluate                      # AI.EVALUATE によるバックテスト (�
 
 SQL を編集したら最低限 `make dry-run` を通すこと。`make print-sql` は置換結果だけ見たいとき (認証不要) に使える。
 
+`make evaluate` の答え合わせ日数は `HORIZON` ではなく **`EVAL_HORIZON` (既定 28)** で制御する。`HORIZON=7` を holdout に使うと評価点が 7 個しかなく、`mase` が実行のたびに 1 をまたぐ程度に振れて回帰確認に使えないため分離してある。README の §7 には `EVAL_HORIZON` 7 / 28 / 56 での実測値を載せてあるので、`13_evaluate.sql` や商品マスタを変更したらこの表も更新すること。
+
 ## アーキテクチャ
 
 ### モデル学習が存在しない
@@ -78,7 +83,7 @@ daily_sales ──WHERE item_name──> AI.FORECAST ──> forecast_value / �
 - `weekend_lift` は **マイナス可**。`おにぎり` (-0.25) が平日型商品を表現している
 - `friday_lift` は金曜のみの上乗せ。`缶ビール350ml` だけが使う
 - `season_amp` / `season_peak_doy` は `season_peak_doy` を頂点とするコサイン波。振幅 0.55 ならピーク 1.55 倍・半年後 0.45 倍
-- **`00納豆` だけ `season_amp = 0.00`**。README のセクション 5〜7 に具体的な出力値を載せているため、季節性を足すとドキュメントと合わなくなる。ここを変更するなら README の実行例も差し替えること
+- **`みんなの納豆` だけ `season_amp = 0.00`**。README のセクション 5〜7 に具体的な出力値を載せているため、季節性を足すとドキュメントと合わなくなる。ここを変更するなら README の実行例も差し替えること
 - ノイズは `FARM_FINGERPRINT` ベースで決定的。同じ日に何度流しても結果が変わらない
 
 商品を追加したら `02_seed_inventory_promotions.sql` の `current_inventory` にも行を足す (無い場合は在庫 0 として動作はする)。

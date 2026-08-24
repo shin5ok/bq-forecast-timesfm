@@ -16,37 +16,37 @@
 -- ------------------------------------------------------------
 CREATE OR REPLACE TABLE `@PROJECT_ID@.@DATASET@.current_inventory` AS
 SELECT * FROM UNNEST([
-  STRUCT('S01' AS store_id, '00納豆' AS item_name, 40 AS stock_qty),
-  STRUCT('S02',             '00納豆',              25),
-  STRUCT('S03',             '00納豆',              12),
+  STRUCT('S01' AS store_id, 'みんなの納豆' AS item_name, 40 AS stock_qty),
+  STRUCT('S02',             'みんなの納豆',              25),
+  STRUCT('S03',             'みんなの納豆',              12),
 
-  STRUCT('S01',             '絹ごし豆腐',          30),
-  STRUCT('S02',             '絹ごし豆腐',          22),
-  STRUCT('S03',             '絹ごし豆腐',          26),
+  STRUCT('S01',             '絹ごし豆腐',                30),
+  STRUCT('S02',             '絹ごし豆腐',                22),
+  STRUCT('S03',             '絹ごし豆腐',                26),
 
-  STRUCT('S01',             '成分無調整牛乳',      45),
-  STRUCT('S02',             '成分無調整牛乳',      32),
-  STRUCT('S03',             '成分無調整牛乳',      40),
+  STRUCT('S01',             '成分無調整牛乳',            45),
+  STRUCT('S02',             '成分無調整牛乳',            32),
+  STRUCT('S03',             '成分無調整牛乳',            40),
 
-  STRUCT('S01',             'アイスクリーム',      35),
-  STRUCT('S02',             'アイスクリーム',      25),
-  STRUCT('S03',             'アイスクリーム',      30),
+  STRUCT('S01',             'アイスクリーム',            35),
+  STRUCT('S02',             'アイスクリーム',            25),
+  STRUCT('S03',             'アイスクリーム',            30),
 
-  STRUCT('S01',             '鍋つゆ',              24),
-  STRUCT('S02',             '鍋つゆ',              18),
-  STRUCT('S03',             '鍋つゆ',              20),
+  STRUCT('S01',             '鍋つゆ',                    24),
+  STRUCT('S02',             '鍋つゆ',                    18),
+  STRUCT('S03',             '鍋つゆ',                    20),
 
-  STRUCT('S01',             '缶ビール350ml',       45),
-  STRUCT('S02',             '缶ビール350ml',       32),
-  STRUCT('S03',             '缶ビール350ml',       38),
+  STRUCT('S01',             '缶ビール350ml',             45),
+  STRUCT('S02',             '缶ビール350ml',             32),
+  STRUCT('S03',             '缶ビール350ml',             38),
 
-  STRUCT('S01',             'おにぎり',            20),
-  STRUCT('S02',             'おにぎり',            15),
-  STRUCT('S03',             'おにぎり',            18),
+  STRUCT('S01',             'おにぎり',                  20),
+  STRUCT('S02',             'おにぎり',                  15),
+  STRUCT('S03',             'おにぎり',                  18),
 
-  STRUCT('S01',             '食パン',              50),
-  STRUCT('S02',             '食パン',              36),
-  STRUCT('S03',             '食パン',              44)
+  STRUCT('S01',             '食パン',                    50),
+  STRUCT('S02',             '食パン',                    36),
+  STRUCT('S03',             '食パン',                    44)
 ]);
 
 -- ------------------------------------------------------------
@@ -65,13 +65,13 @@ SELECT
   promo_name
 FROM UNNEST([
   -- 予測対象期間（daily_sales の最終日=昨日 の翌日から @HORIZON@ 日間）の中に特売日を差し込む
-  STRUCT('S01' AS store_id, '00納豆' AS item_name,
+  STRUCT('S01' AS store_id, 'みんなの納豆' AS item_name,
          DATE_ADD(CURRENT_DATE('@TIMEZONE@'), INTERVAL 2 DAY) AS promo_date,
          '納豆の日セール' AS promo_name),
-  STRUCT('S02',             '00納豆',
+  STRUCT('S02',             'みんなの納豆',
          DATE_ADD(CURRENT_DATE('@TIMEZONE@'), INTERVAL 2 DAY),
          '納豆の日セール'),
-  STRUCT('S03',             '00納豆',
+  STRUCT('S03',             'みんなの納豆',
          DATE_ADD(CURRENT_DATE('@TIMEZONE@'), INTERVAL 5 DAY),
          '週末朝市'),
 

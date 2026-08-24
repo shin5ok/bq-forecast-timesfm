@@ -7,7 +7,7 @@
 --
 -- 特徴:
 --   - 3店舗 x 8商品 x @HISTORY_DAYS@ 日分の日次売上
---   - 「00納豆」以外の商品も混在させ、WHERE で絞り込む前提を再現
+--   - 「みんなの納豆」以外の商品も混在させ、WHERE で絞り込む前提を再現
 --   - 商品ごとに異なる「曜日変動」と「年間の季節変動」を持たせている
 --     （夏物 / 冬物 / 平日型 / ほぼフラット、の4パターン）
 --   - 緩やかな増加トレンド
@@ -51,7 +51,7 @@ WITH
     SELECT * FROM UNNEST([
       -- 【予測対象の主役】週次周期性のみ。
       -- README に載せている実行例の数値と一致させるため、季節性は意図的に付けていない。
-      STRUCT('00納豆' AS item_name, 110 AS base_qty,
+      STRUCT('みんなの納豆' AS item_name, 110 AS base_qty,
              0.18 AS weekend_lift, 0.00 AS friday_lift,
              0.00 AS season_amp, 1 AS season_peak_doy, 0.10 AS noise_ratio),
 

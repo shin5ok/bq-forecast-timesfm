@@ -1,5 +1,5 @@
 -- ============================================================
--- 【本題】AI.FORECAST による「00納豆」の店舗別 需要予測
+-- 【本題】AI.FORECAST による「みんなの納豆」の店舗別 需要予測
 --
 -- AI.FORECAST はテーブルだけでなく、カッコ () で囲んだサブクエリを
 -- そのまま入力データとして受け取れる。
@@ -18,7 +18,7 @@ SELECT
   confidence_level,
   ai_forecast_status
 FROM AI.FORECAST(
-  -- 1. 入力データ: '00納豆' の過去データのみを抽出して渡す
+  -- 1. 入力データ: 'みんなの納豆' の過去データのみを抽出して渡す
   (
     SELECT date, store_id, item_name, sales_qty
     FROM `@PROJECT_ID@.@DATASET@.daily_sales`
