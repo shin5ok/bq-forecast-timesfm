@@ -11,6 +11,10 @@ BigQuery ML の `AI.FORECAST` は **TimesFM というゼロショットの時系
 `ITEM_NAME` を差し替えるだけで、**どんな需要パターンなら TimesFM がうまく当てられるのか**を比較できます
 （→ [2-4-1. 収録している商品](#2-4-1-収録している商品)）。
 
+> **実データで使う予定の方へ:** 自社の POS データに差し替えるとき何を用意すればよいかは
+> **[GETTING_STARTED.md — 小売事業者が用意すべきデータ](GETTING_STARTED.md)** にまとめています。
+> 必須は「日次売上実績」1 テーブルだけですが、欠品日の扱いなど前処理で必ずハマる点があります。
+
 ```mermaid
 flowchart TD
     subgraph SRC["入力データ（make setup で生成 / 実運用では既存テーブル）"]
@@ -496,6 +500,11 @@ make evaluate ITEM_NAME=鍋つゆ
 
 ## 8. 自分のデータに差し替える
 
+> **先に [GETTING_STARTED.md](GETTING_STARTED.md) を読むことを勧めます。**
+> 用意すべきテーブルの一覧、POS レシート明細からの作り方、前処理で必ずハマる 6 点
+> （欠測日の 0 埋め、欠品日の補正、商品コードの改廃 …）、準備チェックリストをまとめています。
+> このセクションは「データが揃った後の差し替え手順」だけを扱います。
+
 サンプルデータをやめて実データを使う場合は、`sql/*.sql` の参照先を書き換えるだけです。
 
 1. `make dataset` / `make seed` は実行しない
@@ -561,7 +570,8 @@ make clean FORCE=1    # 確認なしで削除
 ```
 bq-forecast-timesfm/
 ├── Makefile
-├── README.md
+├── README.md                           サンプルデータでの動かし方
+├── GETTING_STARTED.md                  実データを使うためのデータ準備ガイド
 └── sql/
     ├── 00_show_data.sql                 投入データの確認
     ├── 01_seed_daily_sales.sql          サンプル売上実績を生成（8商品 × 3店舗）
