@@ -246,6 +246,11 @@ FROM flagged
 外部要因を**モデル内で**扱いたい場合は `ARIMA_PLUS_XREG` に切り替える選択肢があります
 （ただし `CREATE MODEL` による学習が必要になり、ゼロショットの手軽さは失われます）。
 
+割引率やチラシ掲載といった**強度のある施策**をここまで踏み込んで扱うなら、
+[EXTEND.md](EXTEND.md) に選択肢の比較と実装 SQL をまとめてあります。
+その場合、上の 3-2 の特売カレンダーには `discount_rate` / `promo_type` などの列を足す必要があります
+（→ [EXTEND: 施策データのモデリング](EXTEND.md#3-全レイヤ共通施策データのモデリング)）。
+
 ---
 
 ## 5. 現実的な始め方
@@ -302,6 +307,7 @@ make forecast DRY_RUN=1 PROJECT_ID=... DATASET=...  # 課金なしで構文と�
 ## 参考リンク
 
 - [README](README.md) — サンプルデータでの動かし方
+- [EXTEND](EXTEND.md) — 個別キャンペーン・特別割引を織り込む拡張ガイド
 - [`AI.FORECAST` 関数リファレンス](https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-forecast)
 - [BigQuery で時系列データを扱う（`GAP_FILL` など）](https://cloud.google.com/bigquery/docs/working-with-time-series)
 - [BigQuery ML の予測の概要](https://cloud.google.com/bigquery/docs/forecasting-overview)

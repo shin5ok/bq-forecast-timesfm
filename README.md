@@ -14,6 +14,10 @@ BigQuery ML の `AI.FORECAST` は **TimesFM というゼロショットの時系
 > **実データで使う予定の方へ:** 自社の POS データに差し替えるとき何を用意すればよいかは
 > **[GETTING_STARTED.md — 小売事業者が用意すべきデータ](GETTING_STARTED.md)** にまとめています。
 > 必須は「日次売上実績」1 テーブルだけですが、欠品日の扱いなど前処理で必ずハマる点があります。
+>
+> **個別キャンペーンや特別割引まで効かせたい方へ:** `AI.FORECAST` は単変量なので割引率やチラシ掲載を渡せません。
+> `ARIMA_PLUS_XREG` や Vertex AI Forecasting へどう広げるかは
+> **[EXTEND.md — 個別キャンペーン・特別割引を織り込む](EXTEND.md)** を参照してください。
 
 ```mermaid
 flowchart TD
@@ -577,6 +581,11 @@ make evaluate ITEM_NAME=鍋つゆ
 | 影響を除いてから予測する | 特売日の実績を平常時の水準に均してから `AI.FORECAST` に入力し、出力側で特売分を戻す |
 | `ARIMA_PLUS_XREG` を使う | 外生変数を明示的に扱いたい場合。ただしこちらは `CREATE MODEL` による学習が必要で、ゼロショットではなくなる |
 
+> **個別キャンペーン・特別割引まで踏み込むなら:**
+> 「今回だけの 30% OFF」「チラシ 1 面掲載」のように**強度に差がある施策**は、上の表の 1 番目の方式では表現しきれません。
+> `ARIMA_PLUS_XREG` / `custom_holiday` / Vertex AI Forecasting を含めた選択肢と、そのまま流せる SQL を
+> **[EXTEND.md — 個別キャンペーン・特別割引を織り込む](EXTEND.md)** にまとめています。
+
 ---
 
 ## 9. コストと後始末
@@ -609,6 +618,7 @@ bq-forecast-timesfm/
 ├── Makefile
 ├── README.md                           サンプルデータでの動かし方
 ├── GETTING_STARTED.md                  実データを使うためのデータ準備ガイド
+├── EXTEND.md                           個別キャンペーン・特別割引を織り込む拡張ガイド
 └── sql/
     ├── 00_show_data.sql                 投入データの確認
     ├── 01_seed_daily_sales.sql          サンプル売上実績を生成（8商品 × 3店舗）
